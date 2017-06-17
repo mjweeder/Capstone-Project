@@ -1,0 +1,841 @@
+---
+title: "exploratoryAnalysis of the Blog Data set"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r ,echo = TRUE, message=FALSE, warning=FALSE,results=FALSE}
+library(tm) # Framework for text mining.
+library(qdap) # Quantitative discourse analysis of transcripts.
+library(dplyr) # Data wrangling, pipe operator %>%().
+library(RColorBrewer) # Generate palette of colours for plots.
+library(ggplot2) # Plot word frequencies.
+library(scales) # Include commas in numbers.
+library(Rgraphviz) # Correlation plots.
+library(magrittr)
+library(stringr)
+library(wordcloud)
+library(RWeka)
+library(mlbench)
+library(ngram)
+library(dtplyr)
+library(data.table)
+```
+
+## characterisating of The blogs text input files
+### Input  blogs data set
+```{r}
+con <- file("en_us.blogs.txt")
+blogsInput <- readLines(con, skipNul = TRUE)
+close(con)
+# remove non-ascii characters
+blogsInput<- gsub("[^\x20-\x7E]", "", blogsInput)
+# remove all puncutation but single quote, period, question mark and exclaimation point
+blogsInput<- gsub("[^'.?![:^punct:]]", "", blogsInput, perl=TRUE)
+# remove numbers
+blogsInput <-gsub('[0-9]+', '', blogsInput)
+# remove quotation 
+blogsInput<- gsub("[\"]", "", blogsInput)
+
+blogsDf <- data.frame(blogsInput)
+blogsDf <-as.data.frame( blogsDf[complete.cases(blogsDf),])
+
+```
+## Create new data frame from Training Blogs
+```{r}
+    blogTrainDfR <- as.data.frame(blogsDf[893201:899288,]) # Create dataframe
+    CorpusC = VCorpus(VectorSource(blogTrainDfR)) # create news corpus from dataframe 
+
+    CorpusC <- tm_map(CorpusC, tolower) # change all characters to lower case
+    CorpusC <- tm_map(CorpusC, stripWhitespace)# strip white spaces
+    CorpusC<- tm_map(CorpusC, PlainTextDocument) # Convert to plain text document
+    
+    ### 4grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 4, max = 4))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram4B <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+outcon <- file(paste("testDfB", ".csv", sep=""))
+write.csv(WF_Ngram4B, file = outcon)
+```
+## Create unified NGram dataframe and csv files for 2 thru 4 N-grams
+```{r}
+Ngram2B <- data.frame()
+Ngram3B <- data.frame()
+Ngram4B <- data.frame()
+
+a <- 1
+ronNum <- as.integer(NROW(blogsDf)/7700)
+begin <- 1
+end <- 7700
+while(a <= ronNum){
+    newsDfR <- as.data.frame(blogsDf[begin:end,]) # Create dataframe
+    CorpusC = VCorpus(VectorSource(newsDfR)) # create news corpus from dataframe 
+
+    CorpusC <- tm_map(CorpusC, tolower) # change all characters to lower case
+    CorpusC <- tm_map(CorpusC, stripWhitespace)# strip white spaces
+#strwrap(CorpusC[1])
+    CorpusC<- tm_map(CorpusC, PlainTextDocument) # Convert to plain text document
+    
+## N-gram Calculation
+
+### 2grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram2 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+
+### 3grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram3 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+### 4grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 4, max = 4))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram4 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+### 5grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 5, max = 5))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram5 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+# combine Ngrams into one dataframe
+Ngram2B <- rbind(Ngram2B, WF_Ngram2)
+Ngram3B <- rbind(Ngram3B, WF_Ngram3)
+Ngram4B <- rbind(Ngram4B, WF_Ngram4)
+
+# increment counters
+a <- a + 1
+temp <- end
+begin <- end + 1
+end <- end + 7700
+}
+
+# write Ngram2b to csv file
+outcon <- file(paste("WF_2gramB", ".csv", sep=""))
+write.csv(Ngram2B, file = outcon)
+# write Ngram3b to csv file
+outcon <- file(paste("WF_3gramB", ".csv", sep=""))
+write.csv(Ngram3B, file = outcon)
+# write Ngram4b to csv file
+outcon <- file(paste("WF_4gramB", ".csv", sep=""))
+write.csv(Ngram4B, file = outcon)
+
+
+```
+
+
+## Create unified NGram dataframe and csv files for 5 thru 6 N-grams
+```{r}
+
+Ngram5T <- data.frame()
+Ngram6T <- data.frame()
+
+
+a <- 1
+ronNum <- as.integer(NROW(Df)/7700)
+begin <- 1
+end <- 7700
+while(a <= ronNum){
+    newsDfR <- as.data.frame(blogsDf[begin:end,]) # Create dataframe
+    CorpusC = VCorpus(VectorSource(newsDfR)) # create news corpus from dataframe 
+
+    CorpusC <- tm_map(CorpusC, tolower) # change all characters to lower case
+    CorpusC <- tm_map(CorpusC, stripWhitespace)# strip white spaces
+#strwrap(CorpusC[1])
+    CorpusC<- tm_map(CorpusC, PlainTextDocument) # Convert to plain text document
+    
+## N-gram Calculation
+
+
+### 5grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 5, max = 5))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram5 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+### 6grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 6, max = 6))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram6 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+# combine Ngrams into one dataframe
+Ngram5B <- rbind(Ngram5B, WF_Ngram5)
+Ngram6B <- rbind(Ngram6B, WF_Ngram6)
+
+
+# increment counters
+a <- a + 1
+temp <- end
+begin <- end + 1
+end <- end + 7700
+}
+
+# write Ngram5b to csv file
+outcon <- file(paste("WF_5gramB", ".csv", sep=""))
+write.csv(Ngram5B, file = outcon)
+# write Ngram6b to csv file
+outcon <- file(paste("WF_6gramB", ".csv", sep=""))
+write.csv(Ngram6B, file = outcon)
+
+```
+
+## Create unified NGram dataframe and csv files for 7 thru 8 N-grams
+```{r}
+
+
+Ngram7B <- data.frame()
+Ngram8B <- data.frame()
+
+a <- 1
+ronNum <- as.integer(NROW(blogsDf)/7700)
+begin <- 1
+end <- 7700
+while(a <= ronNum){
+    newsDfR <- as.data.frame(blogsDf[begin:end,]) # Create dataframe
+    CorpusC = VCorpus(VectorSource(newsDfR)) # create news corpus from dataframe 
+
+    CorpusC <- tm_map(CorpusC, tolower) # change all characters to lower case
+    CorpusC <- tm_map(CorpusC, stripWhitespace)# strip white spaces
+#strwrap(CorpusC[1])
+    CorpusC<- tm_map(CorpusC, PlainTextDocument) # Convert to plain text document
+    
+## N-gram Calculation
+
+### 7grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 7, max = 7))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram7 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+### 8grams identification
+methods(findAssocs )
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 8, max = 8))
+tdm <- TermDocumentMatrix(CorpusC, control = list(tokenize = BigramTokenizer))
+NgramFreq <- sort(rowSums(as.matrix(tdm)), decreasing=TRUE)
+WF_Ngram8 <- as.data.frame(data.table(word=names(NgramFreq), freq=NgramFreq))
+
+
+# combine Ngrams into one dataframe
+Ngram7B <- rbind(Ngram7B, WF_Ngram7)
+Ngram8B <- rbind(Ngram8B, WF_Ngram8)
+
+# increment counters
+a <- a + 1
+temp <- end
+begin <- end + 1
+end <- end + 7700
+}
+
+# write Ngram7b to csv file
+outcon <- file(paste("WF_7gramB", ".csv", sep=""))
+write.csv(Ngram7B, file = outcon)
+# write Ngram8b to csv file
+outcon <- file(paste("WF_8gramB",".csv", sep=""))
+write.csv(Ngram8B, file = outcon)
+```
+______________________________________________________________________________________________________________________________
+## Create unified NGram dataframe and csv files for 2 thru 8 N-grams
+### Create unified 2-Gram dataframe and csv file
+
+```{r}
+# Create unified 2 NGram dataframe and csv files
+Ngram2B <-as.data.frame(read.csv("WF_2gramB.csv"))
+
+
+Ngram2B <- Ngram2B %>% group_by(word) %>% summarise( freq = sum(freq))
+
+Ngram2B$word <- gsub('[0-9]+', '', Ngram2B$word)
+ngramOrder <- order(Ngram2B$word, decreasing=FALSE)
+Ngram2B <- Ngram2B[ngramOrder,]
+#________________________________________________________________________
+Ngram_2B <- data.frame()
+begin <- 1
+end <- 10000
+z <- 1
+NgramNumber <- 2
+numReps <- as.integer(NROW(Ngram2B)/10000)
+while(z <= numReps) { 
+    NgramName <- Ngram2B[begin:end,]
+    NgramName$word <- as.character(NgramName$word)
+    # split 2-gram into 2 additonal columns
+    b <- NROW(NgramName)
+    a <- 1
+    while(a <= b){
+        vec <-NgramName[a,1]
+        newVec <- (unlist(sapply(vec, strsplit, "\\s+", USE.NAMES = FALSE))) 
+        y <- 1
+        x <- 3
+        #Ngram2[a,x] <- newVec[1]
+
+        # assign members to loop
+        while(y <= length(newVec)){
+            NgramName[a,x] <- newVec[y]
+            y = y + 1
+            x <- x + 1
+            }
+        a <- a + 1
+    }
+    # increment counters
+    temp <- end
+    begin <- end + 1
+    end <- temp + 10000
+
+   # combine all Ngram2 with expanded columns
+    Ngram_2B <- rbind(Ngram_2B,NgramName)
+    z <- z + 1
+}
+
+# Write the 2 Ngram with the indificual words split and added to additional columns
+write.csv(Ngram_2B, file = "Ngram_2B.csv")
+
+```
+
+### Create unified 3 NGram dataframe and csv files
+```{r}
+
+Ngram3B <-as.data.frame(read.csv("WF_3gramB.csv"))
+
+# group same phrases and add frequencies together
+Ngram3B <- Ngram3B %>% group_by(word) %>% summarise( freq=sum(freq))
+
+Ngram3B$word <- gsub('[0-9]+', '', Ngram3B$word) # remove any numbers that were missed
+ngramOrder <- order(Ngram3B$word, decreasing=FALSE) # order the dataframe by phrases
+Ngram3B <- Ngram3B[ngramOrder,]
+
+Ngram_3B <- data.frame()
+numReps <- as.integer(NROW(Ngram3B)/10000)
+
+begin <- 1
+end <- 10000
+z <- 1
+
+while ( z <= 461) { 
+    NgramName <- Ngram3B[begin:end,]
+    NgramName$word <- as.character(NgramName$word)
+
+    # split 2-gram into 2 additonal columns
+    b <- NROW(NgramName)
+    a <- 1
+    while(a <= b){
+        vec <-NgramName[a,1]
+        newVec <- (unlist(sapply(vec, strsplit, "\\s+", USE.NAMES = FALSE))) 
+        y <- 1
+        x <- 3
+        #Ngram2[a,x] <- newVec[1]
+
+        # assign members to loop
+        while(y <= length(newVec)){
+            NgramName[a,x] <- newVec[y]
+            y = y + 1
+            x <- x + 1
+            }
+        a <- a + 1
+    }
+    # increment counters
+    temp <- end
+    begin <- end + 1
+    end <- temp + 10000
+
+   # combine all 3-Ngram with expanded columns
+    Ngram_3B <- rbind(Ngram_3B,NgramName)
+    z <- z + 1
+}
+
+write.csv(Ngram_3B, file = "Ngram_3B.csv")
+```
+
+### Create  4-NGram dataframe and csv files
+
+```{r}
+Ngram4B <-as.data.frame(read.csv("WF_4gramB.csv"))
+
+Ngram4B <- Ngram4B %>% group_by(word) %>% summarise( freq=sum(freq))
+
+Ngram4B$word <- gsub('[0-9]+', '', Ngram4B$word)
+ngramOrder <- order(Ngram4B$word, decreasing=FALSE)
+Ngram4B <- Ngram4B[ngramOrder,]
+# write.csv(Ngram4, file = "Ngram4.csv")
+Ngram_4B <- data.frame()
+numReps <- as.integer(NROW(Ngram4B)/10000)
+
+begin <- 1
+end <- 10000
+z <- 1
+
+while ( z <= numReps) { 
+    NgramName <- Ngram4B[begin:end,]
+    # split 2-gram into 2 additonal columns
+    b <- NROW(NgramName)
+    a <- 1
+    while(a <= b){
+        vec <-NgramName[a,1]
+        newVec <- (unlist(sapply(vec, strsplit, "\\s+", USE.NAMES = FALSE))) 
+        y <- 1
+        x <- 3
+
+        # assign members to loop
+        while(y <= length(newVec)){
+            NgramName[a,x] <- newVec[y]
+            y = y + 1
+            x <- x + 1
+            }
+        a <- a + 1
+    }
+    # increment counters
+    temp <- end
+    begin <- end + 1
+    end <- temp + 10000
+
+   # combine all Ngram2 with expanded columns
+    Ngram_4B <- rbind(Ngram_4B,NgramName)
+    z <- z + 1
+}
+write.csv(Ngram_4B, file = "Ngram_4B.csv")
+
+```
+### Create 5-Ngram with the indivual words split and added to additional columns
+```{r}
+
+# Create unified 5 NGram dataframe and csv files
+Ngram4B <-as.data.frame(read.csv("WF_4gramB.csv"))
+
+Ngram4B <- Ngram4B %>% group_by(word) %>% summarise( sum=sum(freq))
+
+Ngram4B$word <- gsub('[0-9]+', '', Ngram4B$word)
+ngramOrder <- order(Ngram4B$word, decreasing=FALSE)
+Ngram4B <- Ngram4B[ngramOrder,]
+
+# Create dataframe column for each word in the string
+Ngram_4B <- data.frame()
+numReps <- as.integer(NROW(Ngram4B)/10000)
+
+begin <- 1
+end <- 10000
+z <- 1
+
+while ( z <= numReps) { 
+    NgramName <- Ngram4B[begin:end,]
+    # split 2-gram into 2 additonal columns
+    b <- NROW(NgramName)
+    a <- 1
+    while(a <= b){
+        vec <-NgramName[a,1]
+        newVec <- (unlist(sapply(vec, strsplit, "\\s+", USE.NAMES = FALSE))) 
+        y <- 1
+        x <- 3
+        #Ngram2[a,x] <- newVec[1]
+
+        # assign members to loop
+        while(y <= length(newVec)){
+            NgramName[a,x] <- newVec[y]
+            y = y + 1
+            x <- x + 1
+            }
+        a <- a + 1
+    }
+    # increment counters
+    temp <- end
+    begin <- end + 1
+    end <- temp + 10000
+
+   # combine all Ngram2 with expanded columns
+    Ngram_4B <- rbind(Ngram_4B,NgramName)
+    z <- z + 1
+}
+
+write.csv(Ngram_4B, file = "Ngram_4B.csv")
+```
+
+### Create unified 6 NGram dataframe and csv files
+```{r}
+Ngram6.1 <-as.data.frame(read.csv("WF_6gram1.csv"))
+Ngram6.2 <-as.data.frame(read.csv("WF_6gram2.csv"))
+Ngram6.3 <-as.data.frame(read.csv("WF_6gram3.csv"))
+Ngram6.4 <-as.data.frame(read.csv("WF_6gram4.csv"))
+Ngram6.5 <-as.data.frame(read.csv("WF_6gram5.csv"))
+Ngram6.6 <-as.data.frame(read.csv("WF_6gram6.csv"))
+Ngram6.7 <-as.data.frame(read.csv("WF_6gram7.csv"))
+Ngram6.8 <-as.data.frame(read.csv("WF_6gram8.csv"))
+
+Ngram6 <- rbind(Ngram6.1,Ngram6.2,Ngram6.3,Ngram6.4,Ngram6.5,Ngram6.6,Ngram6.7,Ngram6.8)
+
+Ngram6 <- Ngram6 %>% group_by(word) %>% summarise( sum=sum(freq))
+
+Ngram6$word <- gsub('[0-9]+', '', Ngram6$word)
+ngramOrder <- order(Ngram6$word, decreasing=FALSE)
+Ngram6 <- Ngram6[ngramOrder,]
+write.csv(Ngram6, file = "Ngram6.csv")
+
+# Create dataframe column for each word in the string
+Ngram_6 <- data.frame()
+numReps <- as.integer(NROW(Ngram6)/10000)
+
+begin <- 1
+end <- 10000
+z <- 1
+
+while ( z <= numReps) { 
+    NgramName <- Ngram6[begin:end,]
+    # split 2-gram into 2 additonal columns
+    b <- NROW(NgramName)
+    a <- 1
+    while(a <= b){
+        vec <-NgramName[a,1]
+        newVec <- (unlist(sapply(vec, strsplit, "\\s+", USE.NAMES = FALSE))) 
+        y <- 1
+        x <- 3
+        #Ngram2[a,x] <- newVec[1]
+
+        # assign members to loop
+        while(y <= length(newVec)){
+            NgramName[a,x] <- newVec[y]
+            y = y + 1
+            x <- x + 1
+            }
+        a <- a + 1
+    }
+    # increment counters
+    temp <- end
+    begin <- end + 1
+    end <- temp + 10000
+
+   # combine all Ngram2 with expanded columns
+    Ngram_6 <- rbind(Ngram_6,NgramName)
+    z <- z + 1
+}
+write.csv(Ngram_6, file = "Ngram_6.csv")
+```
+```{r}
+# Create unified 7 NGram dataframe and csv files
+Ngram7.1 <-as.data.frame(read.csv("WF_7gram1.csv"))
+Ngram7.2 <-as.data.frame(read.csv("WF_7gram2.csv"))
+Ngram7.3 <-as.data.frame(read.csv("WF_7gram3.csv"))
+Ngram7.4 <-as.data.frame(read.csv("WF_7gram4.csv"))
+Ngram7.5 <-as.data.frame(read.csv("WF_7gram5.csv"))
+Ngram7.6 <-as.data.frame(read.csv("WF_7gram6.csv"))
+Ngram7.7 <-as.data.frame(read.csv("WF_7gram7.csv"))
+Ngram7.8 <-as.data.frame(read.csv("WF_7gram8.csv"))
+
+Ngram7 <- rbind(Ngram7.1,Ngram7.2,Ngram7.3,Ngram7.4,Ngram7.5,Ngram7.6,Ngram7.7,Ngram7.8)
+
+Ngram7 <- Ngram7 %>% group_by(word) %>% summarise( sum=sum(freq))
+
+Ngram7$word <- gsub('[0-9]+', '', Ngram7$word)
+ngramOrder <- order(Ngram7$word, decreasing=FALSE)
+Ngram7 <- Ngram7[ngramOrder,]
+
+write.csv(Ngram7, file = "Ngram7.csv")
+
+# Create dataframe column for each word in the string
+Ngram_7 <- data.frame()
+numReps <- as.integer(NROW(Ngram7)/10000)
+
+begin <- 1
+end <- 10000
+z <- 1
+
+while ( z <= numReps) { 
+    NgramName <- Ngram7[begin:end,]
+    # split 2-gram into 2 additonal columns
+    b <- NROW(NgramName)
+    a <- 1
+    while(a <= b){
+        vec <-NgramName[a,1]
+        newVec <- (unlist(sapply(vec, strsplit, "\\s+", USE.NAMES = FALSE))) 
+        y <- 1
+        x <- 3
+        #Ngram2[a,x] <- newVec[1]
+
+        # assign members to loop
+        while(y <= length(newVec)){
+            NgramName[a,x] <- newVec[y]
+            y = y + 1
+            x <- x + 1
+            }
+        a <- a + 1
+    }
+    # increment counters
+    temp <- end
+    begin <- end + 1
+    end <- temp + 10000
+
+   # combine all Ngram2 with expanded columns
+    Ngram_7 <- rbind(Ngram_7,NgramName)
+    z <- z + 1
+}
+write.csv(Ngram_7, file = "Ngram_7.csv")
+```
+### Create unified 8 NGram dataframe and csv files
+```{r}
+Ngram8.1 <-as.data.frame(read.csv("WF_8gram1.csv"))
+Ngram8.2 <-as.data.frame(read.csv("WF_8gram2.csv"))
+Ngram8.3 <-as.data.frame(read.csv("WF_8gram3.csv"))
+Ngram8.4 <-as.data.frame(read.csv("WF_8gram4.csv"))
+Ngram8.5 <-as.data.frame(read.csv("WF_8gram5.csv"))
+Ngram8.6 <-as.data.frame(read.csv("WF_8gram6.csv"))
+Ngram8.7 <-as.data.frame(read.csv("WF_8gram7.csv"))
+Ngram8.8 <-as.data.frame(read.csv("WF_8gram8.csv"))
+
+Ngram8 <- rbind(Ngram8.1,Ngram8.2,Ngram8.3,Ngram8.4,Ngram8.5,Ngram8.6,Ngram8.7,Ngram8.8)
+
+Ngram8 <- Ngram8 %>% group_by(word) %>% summarise( sum=sum(freq))
+
+Ngram8$word <- gsub('[0-9]+', '', Ngram8$word)
+ngramOrder <- order(Ngram8$word, decreasing=FALSE)
+Ngram8 <- Ngram8[ngramOrder,]
+
+
+write.csv(Ngram8, file = "Ngram8.csv")
+```
+```{r}
+ngram_7 <-  read.csv("WF_7gram.csv")
+ngram_7b <- as.data.frame( read.csv("WF_7gram2.csv"))
+ngram7 <- rbind(ngram_7,ngram_7b)
+ngram7$word <- gsub('[0-9]+', '', ngram7$word)
+ngramOrder <- order(ngram7$word, decreasing=FALSE)
+ngram7O <- ngram7[ngramOrder,]
+```
+
+### Create testing dataframe for news dataset
+```{r}
+con <- file("en_us.news.txt")
+newsInput <- readLines(con, skipNul = TRUE)
+close(con)
+# remove non-ascii characters
+newsInput<- gsub("[^\x20-\x7E]", "", newsInput)
+# remove all puncutation but single quote, period, question mark and exclaimation point
+newsInput<- gsub("[^'.?![:^punct:]]", "", newsInput, perl=TRUE)
+# remove numbers
+newsInput <-gsub('[0-9]+', '', newsInput)
+# remove quotation 
+newsInput<- gsub("[\"]", "", newsInput)
+
+
+
+newsDf <- data.frame(newsInput)
+newsDfR <-as.data.frame( newsDf[complete.cases(newsDf),])
+begin <- 69301
+end <- NROW(newsDf)
+testingDf <- as.data.frame(newsDf[begin:end,]) #testing dataFrame
+
+
+testCorpus = VCorpus(VectorSource(testingDf)) # create news corpus from dataframe 
+testCorpus <- tm_map(testCorpus, tolower)# change all characters to lower case
+testCorpus <- tm_map(testCorpus, stripWhitespace)# strip white spaces
+testCorpus<- tm_map(testCorpus, PlainTextDocument)
+
+# Look at how the corpus was formed
+testDf<-data.frame(text=unlist(sapply(testCorpus, `[`, "content")), stringsAsFactors=F)
+
+write.csv(testDf, file = "testDf.csv")
+```
+
+
+### Developing Markov model for prediction of words with bigram.
+```{r}
+Ngram_2 <-as.data.frame(read.csv("Ngram_2.csv"))
+
+# input string to predict next word
+predictString <- "conduct adequate due diligence"
+
+# Select the first two words in string
+newVec <- (unlist(sapply(predictString, strsplit, "\\s+", USE.NAMES = FALSE))) 
+
+# Find the third word
+nextWord <- Ngram_2[,4] == newVec[3]
+
+vector_2 <- Ngram_2[nextWord,]
+# remove meaning less words
+vector_2 <- filter(vector_2, V4 != "a" & V4 != "and" & sum != 1) 
+sortOrder <- order(vector_2$sum, decreasing=TRUE)
+vectorOrder <- vector_2[sortOrder,]
+#vector_4c <- Ngram_4[Ngram_4Secondc,]
+
+fourthWorda <- as.character(vector_4a$V5)
+fourthWordb <- as.character(vector_4b$V6)
+#fourthWordc <- as.character(vector_4b$V6)
+# Combine character vectors
+fourthWord <- c(fourthWorda, fourthWordb)
+# sort vector
+fourthWord <- sort(fourthWord)
+wordTable <- table(fourthWord)
+wordDF <- as.data.frame(wordTable)
+
+# Order word dataframe
+wordOrder <- order(wordDF$Freq, decreasing=TRUE)
+wordDF <- wordDF[wordOrder,]
+
+
+
+```
+### Developing Markov model for prediction of words with trigram.
+```{r}
+Ngram_3 <-as.data.frame(read.csv("Ngram_3.csv"))
+
+# input string to predict next word
+predictString <- "you must be"
+
+# Match the first three words in string
+newVec <- (unlist(sapply(predictString, strsplit, "\\s+", USE.NAMES = FALSE))) 
+
+
+# match last two words of the string and find potential next words.
+
+
+Ngram_3Seconda <- Ngram_3[,4] == newVec[2] &  Ngram_3[,5] == newVec[3]
+#Ngram_3Secondb <- Ngram_3[,4] == "to" &  Ngram_3[,5] == "city"
+
+
+vector_1a <- Ngram_3[Ngram_3Seconda,]
+#vector_1b <- Ngram_3[Ngram_3Second,]
+
+```
+
+### Developing Markov model for prediction of words with 4-gram.
+```{r}
+Ngram_4 <-as.data.frame(read.csv("Ngram_4.csv"))
+
+# input string to predict next word
+predictString <- "you must be"
+
+# Match the first three words in string
+newVec <- (unlist(sapply(predictString, strsplit, "\\s+", USE.NAMES = FALSE))) 
+pick3 <- paste(newVec[1], newVec[2], newVec[3], sep=" ")
+
+# match last two words of the string and find potential next words.
+Ngram_4Seconda <- Ngram_4[,4] == newVec[2] &  Ngram_4[,5] == newVec[3]
+Ngram_4Secondb <- Ngram_4[,5] == newVec[2] &  Ngram_4[,6] == newVec[3]
+#Ngram_4Secondc <- Ngram_4[,6] == newVec[2] &  Ngram_4[,6] == newVec[3]
+
+
+vector_4a <- Ngram_4[Ngram_4Seconda,]
+vector_4b <- Ngram_4[Ngram_4Secondb,]
+#vector_4c <- Ngram_4[Ngram_4Secondc,]
+
+fourthWorda <- as.character(vector_4a$V5)
+fourthWordb <- as.character(vector_4b$V6)
+#fourthWordc <- as.character(vector_4b$V6)
+# Combine character vectors
+fourthWord <- c(fourthWorda, fourthWordb)
+# sort vector
+fourthWord <- sort(fourthWord)
+wordTable <- table(fourthWord)
+wordDF <- as.data.frame(wordTable)
+
+# Order word dataframe
+wordOrder <- order(wordDF$Freq, decreasing=TRUE)
+wordDF <- wordDF[wordOrder,]
+
+
+
+```
+
+### Developing Markov model for prediction of words with 5-gram.
+```{r}
+Ngram_5 <-as.data.frame(read.csv("Ngram_5.csv"))
+
+# input string to predict next word
+predictString <- "attend to city business"
+
+# Match the first three words in string
+newVec <- (unlist(sapply(predictString, strsplit, "\\s+", USE.NAMES = FALSE))) 
+
+
+# match last two words of the string and find potential next words.
+
+
+# match last two words of the string and find potential next words.
+
+Ngram_5Seconda <- Ngram_5[,3] == newVec[2] &  Ngram_5[,4] == newVec[3]
+Ngram_5Secondb <- Ngram_5[,4] == newVec[2] &  Ngram_5[,5] == newVec[3]
+Ngram_5Secondc <- Ngram_5[,5] == newVec[2] &  Ngram_5[,6] == newVec[3]
+Ngram_5Secondd <- Ngram_5[,6] == newVec[2] &  Ngram_5[,7] == newVec[3]
+
+
+vector_5a <- Ngram_5[Ngram_5Seconda,]
+vector_5b <- Ngram_5[Ngram_5Secondb,]
+vector_5c <- Ngram_5[Ngram_5Secondc,]
+vector_5d <- Ngram_5[Ngram_5Secondd,]
+
+fourthWorda <- as.character(vector_5a$V4)
+fourthWordb <- as.character(vector_5b$V5)
+fourthWordc <- as.character(vector_5b$V6)
+fourthWordd <- as.character(vector_5b$V7) 
+
+# Combine character vectors
+fourthWord <- c(fourthWorda, fourthWordb, fourthWordc, fourthWordd)
+# sort vector
+fourthWord <- sort(fourthWord)
+wordTable <- table(fourthWord)
+wordDF <- as.data.frame(wordTable)
+
+# Order word dataframe
+wordOrder <- order(wordDF$Freq, decreasing=TRUE)
+wordDF <- wordDF[wordOrder,]
+
+```
+
+### Developing Markov model for prediction of words with 6-gram.
+```{r}
+Ngram_6 <-as.data.frame(read.csv("Ngram_6.csv"))
+
+# input string to predict next word
+predictString <- "then you must be"
+
+# Match the first three words in string
+newVec <- (unlist(sapply(predictString, strsplit, "\\s+", USE.NAMES = FALSE))) 
+
+
+# match last two words of the string and find potential next words.
+
+Ngram_6Seconda <- Ngram_6[,3] == newVec[2] &  Ngram_6[,4] == newVec[3]
+Ngram_6Secondb <- Ngram_6[,4] == newVec[2] &  Ngram_6[,5] == newVec[3]
+Ngram_6Secondc <- Ngram_6[,5] == newVec[2] &  Ngram_6[,6] == newVec[3]
+Ngram_6Secondd <- Ngram_6[,6] == newVec[2] &  Ngram_6[,7] == newVec[3]
+Ngram_6Seconde <- Ngram_6[,7] == newVec[2] &  Ngram_6[,8] == newVec[3]
+
+
+vector_6a <- Ngram_6[Ngram_6Seconda,]
+vector_6b <- Ngram_6[Ngram_6Secondb,]
+vector_6c <- Ngram_6[Ngram_6Secondc,]
+vector_6d <- Ngram_6[Ngram_6Secondd,]
+vector_6e <- Ngram_6[Ngram_6Seconde,]
+fourthWorda <- as.character(vector_6a$V4)
+fourthWordb <- as.character(vector_6b$V5)
+fourthWordc <- as.character(vector_6b$V6)
+fourthWordd <- as.character(vector_6b$V7)
+fourthWorde <- as.character(vector_6b$V8)
+# Combine character vectors
+fourthWord <- c(fourthWorda, fourthWordb, fourthWordc, fourthWordd, fourthWorde)
+# sort vector
+fourthWord <- sort(fourthWord)
+wordTable <- table(fourthWord)
+wordDF <- as.data.frame(wordTable)
+
+# Order word dataframe
+wordOrder <- order(wordDF$Freq, decreasing=TRUE)
+wordDF <- wordDF[wordOrder,]
+```
+
+
